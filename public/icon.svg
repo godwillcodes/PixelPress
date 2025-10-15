@@ -1,0 +1,24 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="#000000"/>
+  
+  <!-- Main icon - "80" with compression symbol -->
+  <g transform="translate(128, 128)">
+    <!-- Number "8" -->
+    <path d="M64 32C64 14.3269 49.6731 0 32 0C14.3269 0 0 14.3269 0 32C0 49.6731 14.3269 64 32 64C49.6731 64 64 49.6731 64 32Z" fill="#f97316"/>
+    <path d="M64 96C64 78.3269 49.6731 64 32 64C14.3269 64 0 78.3269 0 96C0 113.673 14.3269 128 32 128C49.6731 128 64 113.673 64 96Z" fill="#f97316"/>
+    
+    <!-- Number "0" -->
+    <path d="M192 32C192 14.3269 177.673 0 160 0C142.327 0 128 14.3269 128 32V96C128 113.673 142.327 128 160 128C177.673 128 192 113.673 192 96V32Z" fill="#f97316"/>
+    
+    <!-- Compression arrows -->
+    <g transform="translate(256, 48)">
+      <path d="M0 16L16 0L32 16" stroke="#f97316" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M0 32L16 48L32 32" stroke="#f97316" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="16" y1="0" x2="16" y2="48" stroke="#f97316" stroke-width="4" stroke-linecap="round"/>
+    </g>
+  </g>
+  
+  <!-- KB text -->
+  <text x="256" y="400" text-anchor="middle" fill="#f97316" font-family="Arial, sans-serif" font-size="32" font-weight="bold">KB</text>
+</svg>

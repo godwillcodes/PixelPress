@@ -179,16 +179,16 @@
     @apply grid gap-8;
   }
 
-  /* Animation utilities */
-  .animate-fade-in {
+  /* Animation utilities - using standard Tailwind classes */
+  .fade-in {
     @apply opacity-0 animate-pulse;
   }
 
-  .animate-slide-up {
+  .slide-up {
     @apply transform translate-y-5 opacity-0 transition-all duration-300;
   }
 
-  .animate-scale-in {
+  .scale-in {
     @apply transform scale-95 opacity-0 transition-all duration-200;
   }
 
