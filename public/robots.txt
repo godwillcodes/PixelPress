@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://exact80.com/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Block access to API routes from search engines
+Disallow: /api/
+
+# Allow access to static assets
+Allow: /_next/static/
+Allow: /favicon.ico
+Allow: /icon.svg
+Allow: /apple-touch-icon.png
+Allow: /manifest.json

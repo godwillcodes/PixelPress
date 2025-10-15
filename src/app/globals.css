@@ -1,26 +1,195 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-jetbrains-mono: 'JetBrains Mono', 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+  }
+
+  body {
+    font-family: var(--font-inter);
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-600 rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-500;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  /* Orange & Black button components */
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-xl bg-orange-500 text-black font-semibold transition-all duration-200 shadow-lg shadow-orange-500/30;
+  }
+
+  .btn-primary:hover {
+    @apply bg-orange-400 -translate-y-0.5 shadow-xl shadow-orange-500/40;
+  }
+
+  .btn-primary:focus-visible {
+    @apply outline-none ring-2 ring-orange-500 ring-offset-2 ring-offset-black;
+  }
+
+  .btn-primary:disabled {
+    @apply pointer-events-none opacity-60 transform-none shadow-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-xl border border-gray-600 bg-gray-800 text-white font-medium transition-all duration-200;
+  }
+
+  .btn-secondary:hover {
+    @apply bg-gray-700;
+  }
+
+  .btn-secondary:focus-visible {
+    @apply outline-none ring-2 ring-orange-500 ring-offset-2 ring-offset-black;
+  }
+
+  .btn-secondary:disabled {
+    @apply pointer-events-none opacity-50;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-xl text-white font-medium transition-all duration-200;
+  }
+
+  .btn-ghost:hover {
+    @apply bg-gray-800;
+  }
+
+  .btn-ghost:focus-visible {
+    @apply outline-none ring-2 ring-orange-500 ring-offset-2 ring-offset-black;
+  }
+
+  .btn-ghost:disabled {
+    @apply pointer-events-none opacity-50;
+  }
+
+  /* Dark card components */
+  .card {
+    @apply rounded-2xl border border-gray-600 bg-gray-800 shadow-lg shadow-black/30;
+  }
+
+  .card-elevated {
+    @apply rounded-2xl border border-gray-600 bg-gray-800 shadow-2xl shadow-black/40;
+  }
+
+  /* Dark input components */
+  .input {
+    @apply flex h-12 w-full rounded-xl border border-gray-600 bg-gray-800 text-white px-4 text-sm;
+  }
+
+  .input:focus-visible {
+    @apply outline-none ring-2 ring-orange-500 ring-offset-2 ring-offset-black;
+  }
+
+  .input:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  /* Typography */
+  .text-display {
+    @apply text-6xl font-bold tracking-tight leading-none;
+  }
+
+  .text-headline {
+    @apply text-4xl font-bold tracking-tight leading-10;
+  }
+
+  .text-title {
+    @apply text-2xl font-semibold tracking-tight leading-8;
+  }
+
+  .text-body {
+    @apply text-base leading-relaxed;
+  }
+
+  .text-caption {
+    @apply text-sm text-gray-400;
+  }
+
+  .text-mono {
+    @apply font-mono text-sm;
+  }
+
+  /* Artistic Progress Bar */
+  .progress-container {
+    @apply relative w-full h-2 bg-gray-800 rounded;
+  }
+
+  .progress-bar {
+    @apply h-full bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 rounded transition-all duration-300 relative overflow-hidden;
+  }
+
+  .progress-bar::before {
+    content: '';
+    @apply absolute top-0 -left-full w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse;
+  }
+
+  .progress-text {
+    @apply text-sm text-gray-400 mt-2 text-center;
+  }
+}
+
+@layer utilities {
+  /* Spacing utilities */
+  .space-y-apple > * + * {
+    @apply mt-6;
+  }
+
+  .space-y-apple-sm > * + * {
+    @apply mt-4;
+  }
+
+  .space-y-apple-lg > * + * {
+    @apply mt-8;
+  }
+
+  /* Grid utilities */
+  .grid-apple {
+    @apply grid gap-6;
+  }
+
+  .grid-apple-sm {
+    @apply grid gap-4;
+  }
+
+  .grid-apple-lg {
+    @apply grid gap-8;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    @apply opacity-0 animate-pulse;
+  }
+
+  .animate-slide-up {
+    @apply transform translate-y-5 opacity-0 transition-all duration-300;
+  }
+
+  .animate-scale-in {
+    @apply transform scale-95 opacity-0 transition-all duration-200;
+  }
+
 }
