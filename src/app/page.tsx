@@ -119,7 +119,7 @@ export default function Home() {
       setProgressPercent(15);
       
       await new Promise(resolve => setTimeout(resolve, 200));
-      setCompressionProgress('Scanning your image - this looks fire! 🔥');
+      setCompressionProgress('AI analyzing your image - this looks fire! 🔥');
       setProgressPercent(25);
       
       const response = await fetch('/api/compress', {
@@ -128,7 +128,7 @@ export default function Home() {
       });
 
       await new Promise(resolve => setTimeout(resolve, 300));
-      setCompressionProgress('Working our magic on the quality settings... ✨');
+      setCompressionProgress('Parallel processing multiple quality settings... ⚡');
       setProgressPercent(40);
 
       if (!response.ok) {
@@ -137,7 +137,7 @@ export default function Home() {
       }
 
       await new Promise(resolve => setTimeout(resolve, 400));
-      setCompressionProgress('Fine-tuning the compression - almost there! 🎯');
+      setCompressionProgress('Adaptive binary search converging on target... 🎯');
       setProgressPercent(65);
 
       // Get response headers for stats
@@ -171,11 +171,11 @@ export default function Home() {
       });
 
       await new Promise(resolve => setTimeout(resolve, 300));
-      setCompressionProgress('Converting to your chosen format... 🔄');
+      setCompressionProgress('Format-specific optimization in progress... 🔄');
       setProgressPercent(80);
 
       await new Promise(resolve => setTimeout(resolve, 200));
-      setCompressionProgress('Preparing your download - this is gonna be sick! 💯');
+      setCompressionProgress('Caching result and preparing download... 💯');
       setProgressPercent(90);
 
       // Create download link with SEO-friendly filename
@@ -244,11 +244,21 @@ export default function Home() {
   }, [selectedFile, format, mode]);
 
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    if (bytes === 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) {
+      return `${kb.toFixed(1)} KB`;
+    }
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+  };
+
+  const formatTime = (milliseconds: number) => {
+    const seconds = milliseconds / 1000;
+    if (seconds < 1) {
+      return `${(seconds * 1000).toFixed(0)}ms`;
+    }
+    return `${seconds.toFixed(1)}s`;
   };
 
   return (
@@ -510,7 +520,7 @@ export default function Home() {
                     </div>
                     <div className="rounded-2xl border border-gray-600 bg-gray-800 shadow-lg shadow-black/30 p-4 text-center">
                       <div className="text-2xl font-bold text-orange-500 mb-1">
-                        {result.processingTime}ms
+                        {formatTime(result.processingTime)}
                       </div>
                       <div className="text-sm text-gray-400">Time</div>
                     </div>

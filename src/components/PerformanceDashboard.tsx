@@ -27,6 +27,24 @@ export default function PerformanceDashboard({ className = '' }: PerformanceDash
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [isVisible, setIsVisible] = useState(false);
 
+  const formatTime = (milliseconds: number) => {
+    const seconds = milliseconds / 1000;
+    if (seconds < 1) {
+      return `${(seconds * 1000).toFixed(0)}ms`;
+    }
+    return `${seconds.toFixed(1)}s`;
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) {
+      return `${kb.toFixed(1)} KB`;
+    }
+    const mb = kb / 1024;
+    return `${mb.toFixed(1)} MB`;
+  };
+
   useEffect(() => {
     // Listen for performance metrics from compression results
     const handleMessage = (event: MessageEvent) => {
@@ -80,7 +98,7 @@ export default function PerformanceDashboard({ className = '' }: PerformanceDash
           <div className="flex justify-between items-center">
             <span className="text-sm text-gray-400">Processing Time</span>
             <span className="text-sm font-medium text-white">
-              {(metrics.processingTime / 1000).toFixed(2)}s
+              {formatTime(metrics.processingTime)}
             </span>
           </div>
 
@@ -112,6 +130,14 @@ export default function PerformanceDashboard({ className = '' }: PerformanceDash
               <span className="text-sm font-medium text-green-400">HIT</span>
             </div>
           )}
+
+          {/* Final Size */}
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-400">Final Size</span>
+            <span className="text-sm font-medium text-white">
+              {formatFileSize(metrics.finalSize)}
+            </span>
+          </div>
 
           {/* Quality Achieved */}
           <div className="flex justify-between items-center">
@@ -162,7 +188,7 @@ export default function PerformanceDashboard({ className = '' }: PerformanceDash
                 'bg-gradient-to-r from-red-500 to-red-600'
               }`}
               style={{ 
-                width: `${Math.max(20, Math.min(100, 100 - (metrics.processingTime / 100))}%` 
+                width: `${Math.max(20, Math.min(100, 100 - (metrics.processingTime / 100)))}%` 
               }}
             />
           </div>
