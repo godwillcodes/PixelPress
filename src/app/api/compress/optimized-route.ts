@@ -225,8 +225,7 @@ class ParallelCompressor {
           quality,
           effort: 4, // Reduced from 6 for speed
           lossless: false,
-          smartSubsample: true,
-          reductionEffort: 2 // Faster encoding
+          smartSubsample: true
         }).toBuffer();
       
       case 'avif':
