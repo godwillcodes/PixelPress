@@ -232,7 +232,6 @@ class ParallelCompressor {
         return pipeline.avif({
           quality,
           effort: 4, // Reduced from 6 for speed
-          speed: 6, // Faster encoding
           chromaSubsampling: '4:2:0' // Faster encoding
         }).toBuffer();
       
