@@ -37,6 +37,7 @@ export default function Home() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const progressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // PWA Installation
   useEffect(() => {
@@ -58,6 +59,15 @@ export default function Home() {
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Cleanup progress timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (progressTimeoutRef.current) {
+        clearTimeout(progressTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -90,8 +100,8 @@ export default function Home() {
     if (!selectedFile) return;
 
     setIsCompressing(true);
-    setCompressionProgress('Starting compression...');
-    setProgressPercent(10);
+    setCompressionProgress('Let\'s get this party started! 🚀');
+    setProgressPercent(5);
     setError(null);
     setResult(null);
     setStats({});
@@ -102,24 +112,32 @@ export default function Home() {
     formData.append('mode', mode);
 
     try {
-      setCompressionProgress('Uploading image...');
-      setProgressPercent(20);
+      // Simulate more realistic progress with delays
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setCompressionProgress('Uploading your pic to our servers... 📤');
+      setProgressPercent(15);
+      
+      await new Promise(resolve => setTimeout(resolve, 200));
+      setCompressionProgress('Scanning your image - this looks fire! 🔥');
+      setProgressPercent(25);
       
       const response = await fetch('/api/compress', {
         method: 'POST',
         body: formData,
       });
 
-      setCompressionProgress('Processing compression...');
-      setProgressPercent(50);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setCompressionProgress('Working our magic on the quality settings... ✨');
+      setProgressPercent(40);
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Compression failed');
       }
 
-      setCompressionProgress('Finalizing...');
-      setProgressPercent(80);
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setCompressionProgress('Fine-tuning the compression - almost there! 🎯');
+      setProgressPercent(65);
 
       // Get response headers for stats
       const processingTime = parseInt(response.headers.get('X-Processing-Time') || '0');
@@ -151,8 +169,13 @@ export default function Home() {
         sizeDifference: Math.abs(resultBytes - 80000)
       });
 
-      setCompressionProgress('Downloading...');
-      setProgressPercent(95);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setCompressionProgress('Converting to your chosen format... 🔄');
+      setProgressPercent(80);
+
+      await new Promise(resolve => setTimeout(resolve, 200));
+      setCompressionProgress('Preparing your download - this is gonna be sick! 💯');
+      setProgressPercent(90);
 
       // Create download link with SEO-friendly filename
       const blob = await response.blob();
@@ -178,17 +201,21 @@ export default function Home() {
       URL.revokeObjectURL(downloadUrl);
 
       setProgressPercent(100);
-      setCompressionProgress('Complete!');
+      setCompressionProgress('BOOM! Your compressed image is ready! 🎉');
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unknown error occurred');
+      setError(err instanceof Error ? err.message : 'Oops! Something went wrong 😅');
       setProgressPercent(0);
     } finally {
       setIsCompressing(false);
-      setTimeout(() => {
+      // Keep the success message visible for a bit, then smoothly reset
+      progressTimeoutRef.current = setTimeout(() => {
         setCompressionProgress('');
-        setProgressPercent(0);
-      }, 2000);
+        // Smooth transition back to 0
+        progressTimeoutRef.current = setTimeout(() => {
+          setProgressPercent(0);
+        }, 100);
+      }, 3000);
     }
   }, [selectedFile, format, mode]);
 
@@ -344,15 +371,15 @@ export default function Home() {
                 {/* Progress Bar */}
                 {isCompressing && (
                   <div className="mt-4">
-                    <div className="relative w-full h-2 bg-gray-800 rounded">
+                    <div className="relative w-full h-2 bg-gray-800 rounded overflow-hidden">
                       <div 
-                        className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 rounded transition-all duration-300 relative overflow-hidden" 
+                        className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 rounded transition-all duration-500 ease-out relative" 
                         style={{ width: `${progressPercent}%` }}
                       >
-                        <div className="absolute top-0 -left-full w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
                       </div>
                     </div>
-                    <div className="text-sm text-gray-400 mt-2 text-center">{compressionProgress}</div>
+                    <div className="text-sm text-gray-400 mt-2 text-center animate-pulse">{compressionProgress}</div>
                   </div>
                 )}
               </div>
@@ -479,35 +506,43 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Features */}
+              {/* How It Works */}
               <div className="rounded-2xl border border-gray-600 bg-gray-800 shadow-2xl shadow-black/40 p-6">
-                <h3 className="text-lg font-semibold mb-4">Features</h3>
-                <div className="space-y-3 text-sm text-gray-300">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>Hybrid compression modes (Exact/Balanced)</span>
+                <h3 className="text-lg font-semibold mb-6">How It Works</h3>
+                
+                {/* Step-by-step Process */}
+                <div className="space-y-4 mb-6">
+                  <div>
+                    <h4 className="font-medium text-white mb-1">We Scan Your Pic 📸</h4>
+                    <p className="text-sm text-gray-300">Your image gets the full treatment - we check dimensions, colors, and complexity to figure out the best way to make it smaller without losing the vibe.</p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>Tiered algorithm (quality → scaling → palette)</span>
+                  
+                  <div>
+                    <h4 className="font-medium text-white mb-1">Quality Goes Hard 🔥</h4>
+                    <p className="text-sm text-gray-300">We use some serious math (binary search, but make it cute) to find the sweet spot where your pic still looks amazing but fits that 80KB target.</p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>Deterministic binary search</span>
+                  
+                  <div>
+                    <h4 className="font-medium text-white mb-1">Smart Resize Game 💪</h4>
+                    <p className="text-sm text-gray-300">If quality tweaks aren't enough, we'll resize your image intelligently while keeping those proportions looking fresh and maintaining the aesthetic.</p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>WebP & AVIF support</span>
+                  
+                  <div>
+                    <h4 className="font-medium text-white mb-1">Color Palette Cleanup 🎨</h4>
+                    <p className="text-sm text-gray-300">For pics with way too many colors, we'll trim the palette down to the essentials. Less is more, and your file size will thank you.</p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>Resource controls & timeouts</span>
+                  
+                  <div>
+                    <h4 className="font-medium text-white mb-1">Format Glow-Up ✨</h4>
+                    <p className="text-sm text-gray-300">Time for the transformation! We convert your optimized image to WebP or AVIF using some next-level encoding that's basically magic.</p>
                   </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                    <span>SEO-friendly filenames with metadata</span>
+                  
+                  <div>
+                    <h4 className="font-medium text-white mb-1">Hit That Target 🎯</h4>
+                    <p className="text-sm text-gray-300">Final touches to make sure we nail exactly 80KB (Exact mode) or get super close within ±10KB (Balanced mode). No cap, we're precise like that.</p>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
