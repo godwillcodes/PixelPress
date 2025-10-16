@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
-import { createHash } from 'crypto';
+import { Worker } from 'worker_threads';
+import { promisify } from 'util';
 
-// Performance Configuration - Optimized for Production
+// Performance Configuration
 const TARGET_BYTES = 80_000;
 const TOLERANCE_BALANCED = 10_000;
 const TOLERANCE_EXACT = 0;
@@ -62,6 +63,21 @@ interface CompressionResult {
   parallelTests?: number;
 }
 
+interface CompressionMetrics {
+  processingTime: number;
+  iterationsUsed: number;
+  memoryPeak: number;
+  cpuUsage: number;
+  finalSize: number;
+  qualityAchieved: number;
+  exactMatch: boolean;
+  compressionRatio: number;
+  queueLength: number;
+  activeJobs: number;
+  cacheHitRate: number;
+  errorRate: number;
+}
+
 interface AdaptiveHeuristics {
   imageComplexity: number;
   estimatedQuality: number;
@@ -74,6 +90,7 @@ interface AdaptiveHeuristics {
 let activeJobs = 0;
 let totalJobsProcessed = 0;
 let cacheHits = 0;
+const jobQueue: Array<() => Promise<void>> = [];
 
 // Simple in-memory cache (in production, use Redis)
 const compressionCache = new Map<string, Buffer>();
@@ -208,13 +225,15 @@ class ParallelCompressor {
           quality,
           effort: 4, // Reduced from 6 for speed
           lossless: false,
-          smartSubsample: true
+          smartSubsample: true,
+          reductionEffort: 2 // Faster encoding
         }).toBuffer();
       
       case 'avif':
         return pipeline.avif({
           quality,
           effort: 4, // Reduced from 6 for speed
+          speed: 6, // Faster encoding
           chromaSubsampling: '4:2:0' // Faster encoding
         }).toBuffer();
       
@@ -502,7 +521,7 @@ class ParallelCompressor {
 
 // Cache management
 function generateCacheKey(buffer: Buffer, format: OutputFormat, mode: CompressionMode): string {
-  const hash = createHash('md5').update(buffer).digest('hex');
+  const hash = require('crypto').createHash('md5').update(buffer).digest('hex');
   return `${hash}-${format}-${mode}`;
 }
 
@@ -518,6 +537,24 @@ function cleanupCache(): void {
       cacheTimestamps.delete(key);
     }
   }
+}
+
+// Metrics collection
+function collectMetrics(result: CompressionResult, inputSize: number): CompressionMetrics {
+  return {
+    processingTime: result.processingTime,
+    iterationsUsed: result.iterations,
+    memoryPeak: 0, // Would be tracked in production
+    cpuUsage: 0, // Would be tracked in production
+    finalSize: result.size,
+    qualityAchieved: result.quality,
+    exactMatch: result.exactMatch,
+    compressionRatio: inputSize / result.size,
+    queueLength: jobQueue.length,
+    activeJobs,
+    cacheHitRate: totalJobsProcessed > 0 ? cacheHits / totalJobsProcessed : 0,
+    errorRate: 0 // Would be tracked in production
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -601,6 +638,10 @@ export async function POST(request: NextRequest) {
     if (totalJobsProcessed % 100 === 0) {
       cleanupCache();
     }
+    
+    // Collect metrics
+    const metrics = collectMetrics(result, inputBuffer.length);
+    console.log('Compression metrics:', metrics);
     
     // Generate filename
     const sanitizedName = file.name
