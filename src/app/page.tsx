@@ -132,8 +132,21 @@ export default function Home() {
       setProgressPercent(40);
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Compression failed');
+        let errorMessage = 'Compression failed';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (jsonError) {
+          // If response is not JSON, try to get text
+          try {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            // Use default error message
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       await new Promise(resolve => setTimeout(resolve, 400));
@@ -186,7 +199,7 @@ export default function Home() {
       
       // Use the filename from the Content-Disposition header if available
       const contentDisposition = response.headers.get('Content-Disposition');
-      let seoFilename = `exact80-${selectedFile.name.split('.')[0]}-${format}-80kb.${format}`;
+      let seoFilename = `pixelpress-${selectedFile.name.split('.')[0]}-${format}-compressed.${format}`;
       
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
@@ -268,10 +281,10 @@ export default function Home() {
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-2">
-              Exact<span className="text-orange-500">80</span>
+              Pixel<span className="text-orange-500">Press</span>
             </h1>
             <p className="text-gray-400 text-sm md:text-base">
-              Precision image compression to exactly 80KB
+              Maximum image compression for optimal file sizes
             </p>
           </div>
         </div>
@@ -357,8 +370,8 @@ export default function Home() {
                   <label className="block text-sm font-medium mb-3">Compression Mode</label>
                   <div className="space-y-3">
                     {([
-                      { value: 'balanced', label: 'Balanced', description: 'Quality priority (±10KB tolerance, 90s timeout)', recommended: true },
-                      { value: 'exact', label: 'Exact', description: 'Size priority (exact 80KB target, 90s timeout)', recommended: false }
+                      { value: 'balanced', label: 'Balanced', description: 'Quality priority (±5KB tolerance, 90s timeout)', recommended: true },
+                      { value: 'exact', label: 'Exact', description: 'Size priority (minimum possible size, 90s timeout)', recommended: false }
                     ] as const).map((modeOption) => (
                       <label key={modeOption.value} className="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border border-gray-600 hover:border-orange-500 transition-colors">
                         <input
@@ -398,7 +411,7 @@ export default function Home() {
                       <span>Compressing...</span>
                     </>
                   ) : (
-                    <span>Compress to 80KB ({mode === 'exact' ? 'Exact' : 'Balanced'})</span>
+                    <span>Compress for Maximum Size Reduction ({mode === 'exact' ? 'Exact' : 'Balanced'})</span>
                   )}
                 </button>
 
@@ -480,7 +493,7 @@ export default function Home() {
                         </div>
                         <p className={`text-sm ${result.exactMatch ? 'text-green-300' : 'text-orange-300'}`}>
                           {result.exactMatch 
-                            ? 'Perfect! Exactly 80,000 bytes.'
+                            ? 'Perfect! Maximum compression achieved.'
                             : `${formatFileSize(result.outputSize)} (${stats.sizeDifference} bytes difference)`
                           }
                         </p>
@@ -558,7 +571,7 @@ export default function Home() {
                   
                   <div>
                     <h4 className="font-medium text-white mb-1">Adaptive Binary Search 🎯</h4>
-                    <p className="text-sm text-gray-300">Using intelligent heuristics, we start from the predicted optimal quality and use parallel binary search to quickly converge on the exact 80KB target. No more guessing!</p>
+                    <p className="text-sm text-gray-300">Using intelligent heuristics, we start from the predicted optimal quality and use parallel binary search to quickly converge on the smallest possible file size. No more guessing!</p>
                   </div>
                   
                   <div>
@@ -595,7 +608,7 @@ export default function Home() {
                   </svg>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-white">Install Exact80</h4>
+                  <h4 className="font-semibold text-white">Install PixelPress</h4>
                   <p className="text-sm text-gray-400">Get quick access to image compression</p>
                 </div>
               </div>

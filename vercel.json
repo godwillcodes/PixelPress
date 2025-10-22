@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "src/app/api/compress/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/compress/optimized-route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "regions": ["iad1"],
+  "framework": "nextjs"
+}

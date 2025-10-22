@@ -1,7 +1,7 @@
 {
-  "name": "Exact80 - Precision Image Compression",
-  "short_name": "Exact80",
-  "description": "Convert images to WebP or AVIF with byte-exact control targeting exactly 80,000 bytes",
+  "name": "PixelPress - Maximum Image Compression",
+  "short_name": "PixelPress",
+  "description": "Convert images to WebP or AVIF with maximum compression for optimal file sizes",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
@@ -35,21 +35,21 @@
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Exact80 desktop interface"
+      "label": "PixelPress desktop interface"
     },
     {
       "src": "/screenshot-mobile.png",
       "sizes": "390x844",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Exact80 mobile interface"
+      "label": "PixelPress mobile interface"
     }
   ],
   "shortcuts": [
     {
       "name": "Compress Image",
       "short_name": "Compress",
-      "description": "Upload and compress an image to 80KB",
+      "description": "Upload and compress an image for maximum compression",
       "url": "/",
       "icons": [
         {

@@ -19,10 +19,10 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Exact80 - Precision Image Compression to 80KB",
-    template: "%s | Exact80"
+    default: "PixelPress - Maximum Image Compression",
+    template: "%s | PixelPress"
   },
-  description: "Professional image compression tool that converts JPEG, JPG, and PNG images to WebP or AVIF with byte-exact control targeting exactly 80,000 bytes while preserving maximum visual fidelity through advanced binary search algorithms.",
+  description: "Professional image compression tool that converts JPEG, JPG, and PNG images to WebP or AVIF with maximum compression while preserving visual fidelity through advanced binary search algorithms.",
   keywords: [
     "image compression",
     "WebP converter",
@@ -30,22 +30,22 @@ export const metadata: Metadata = {
     "JPEG optimization",
     "PNG compression",
     "exact file size",
-    "80KB compression",
+    "maximum compression",
     "binary search algorithm",
     "image optimization",
     "web performance",
     "Next.js image tool",
     "precision compression"
   ],
-  authors: [{ name: "Exact80 Team" }],
-  creator: "Exact80",
-  publisher: "Exact80",
+  authors: [{ name: "PixelPress Team" }],
+  creator: "PixelPress",
+  publisher: "PixelPress",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://exact80.com"),
+  metadataBase: new URL("https://pixelpress.com"),
   alternates: {
     canonical: "/",
   },
@@ -53,15 +53,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://exact80.com",
-    siteName: "Exact80",
-    title: "Exact80 - Precision Image Compression to 80KB",
-    description: "Convert images to WebP or AVIF with byte-exact control targeting exactly 80,000 bytes. Professional image compression with advanced binary search algorithms.",
+    siteName: "PixelPress",
+    title: "PixelPress - Maximum Image Compression",
+    description: "Convert images to WebP or AVIF with maximum compression. Professional image compression with advanced binary search algorithms.",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Exact80 - Precision Image Compression Tool",
+        alt: "PixelPress - Maximum Image Compression Tool",
         type: "image/png",
       },
     ],
@@ -107,7 +107,7 @@ export default function RootLayout({
         <meta name="color-scheme" content="dark" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Exact80" />
+        <meta name="apple-mobile-web-app-title" content="PixelPress" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-config" content="/browserconfig.xml" />
@@ -117,9 +117,9 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebApplication",
-              "name": "Exact80",
-              "description": "Precision image compression tool targeting exactly 80,000 bytes",
-              "url": "https://exact80.com",
+              "name": "PixelPress",
+              "description": "Maximum image compression tool for optimal file sizes",
+              "url": "https://pixelpress.com",
               "applicationCategory": "MultimediaApplication",
               "operatingSystem": "Web Browser",
               "offers": {
@@ -129,10 +129,10 @@ export default function RootLayout({
               },
               "creator": {
                 "@type": "Organization",
-                "name": "Exact80 Team"
+                "name": "PixelPress Team"
               },
               "featureList": [
-                "Byte-exact compression to 80KB",
+                "Maximum compression optimization",
                 "WebP and AVIF format support",
                 "Binary search algorithm optimization",
                 "Deterministic output",
