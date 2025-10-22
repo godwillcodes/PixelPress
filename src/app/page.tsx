@@ -3,6 +3,15 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import Image from "next/image";
 import PerformanceDashboard from "@/components/PerformanceDashboard";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Upload, Download, Settings, Zap, Target, Clock, FileImage, CheckCircle, AlertTriangle } from "lucide-react";
 
 interface CompressionResult {
   success: boolean;
@@ -277,13 +286,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
-      <header className="border-b border-gray-800">
+      <header className="border-b border-border">
         <div className="container mx-auto px-4 py-6">
           <div className="text-center">
             <h1 className="text-4xl md:text-5xl font-bold mb-2">
-              Pixel<span className="text-orange-500">Press</span>
+              Pixel<span className="text-primary">Press</span>
             </h1>
-            <p className="text-gray-400 text-sm md:text-base">
+            <p className="text-muted-foreground text-sm md:text-base">
               Maximum image compression for optimal file sizes
             </p>
           </div>
@@ -297,12 +306,21 @@ export default function Home() {
             
             {/* Upload Section */}
             <div className="space-y-6">
-              <div className="rounded-2xl border border-gray-600 bg-gray-800 shadow-2xl shadow-black/40 p-6">
-                <h2 className="text-xl font-semibold mb-4">Upload Image</h2>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Upload className="h-5 w-5" />
+                    Upload Image
+                  </CardTitle>
+                  <CardDescription>
+                    Select an image to compress for maximum file size reduction
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                 
                 {/* File Upload */}
                 <div 
-                  className="border-2 border-dashed border-orange-500 rounded-xl p-8 text-center hover:border-orange-500 transition-colors cursor-pointer group"
+                  className="border-2 border-dashed border-primary rounded-xl p-8 text-center hover:border-primary transition-colors cursor-pointer group"
                   onClick={() => fileInputRef.current?.click()}
                   role="button"
                   tabIndex={0}
@@ -323,84 +341,81 @@ export default function Home() {
                   {selectedFile ? (
                     <div className="space-y-3">
                       <div className="text-green-500">
-                        <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                        <CheckCircle className="w-12 h-12 mx-auto" />
                       </div>
                       <p className="font-medium">{selectedFile.name}</p>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-muted-foreground">
                         {formatFileSize(selectedFile.size)} • {selectedFile.type}
                       </p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      <div className="text-gray-500 group-hover:text-orange-500 transition-colors">
-                        <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
+                      <div className="text-muted-foreground group-hover:text-primary transition-colors">
+                        <Upload className="w-12 h-12 mx-auto" />
                       </div>
                       <p className="font-medium">Click to upload</p>
-                      <p className="text-sm text-gray-400">JPEG, JPG, PNG up to 10MB</p>
+                      <p className="text-sm text-muted-foreground">JPEG, JPG, PNG up to 10MB</p>
                     </div>
                   )}
                 </div>
 
                 {/* Format Selection */}
                 <div className="mt-6">
-                  <label className="block text-sm font-medium mb-3">Output Format</label>
+                  <Label className="text-sm font-medium mb-3 block">Output Format</Label>
                   <div className="flex gap-4">
                     {(['webp', 'avif'] as const).map((fmt) => (
-                      <label key={fmt} className="flex items-center space-x-2 cursor-pointer">
+                      <Label key={fmt} className="flex items-center space-x-2 cursor-pointer">
                         <input
                           type="radio"
                           name="format"
                           value={fmt}
                           checked={format === fmt}
                           onChange={(e) => setFormat(e.target.value as 'webp' | 'avif')}
-                          className="w-4 h-4 text-orange-500 bg-gray-800 border-gray-600 focus:ring-orange-500"
+                          className="w-4 h-4 text-primary bg-background border-border focus:ring-primary"
                         />
                         <span className="text-sm font-medium uppercase">{fmt}</span>
-                      </label>
+                      </Label>
                     ))}
                   </div>
                 </div>
 
                 {/* Mode Selection */}
                 <div className="mt-6">
-                  <label className="block text-sm font-medium mb-3">Compression Mode</label>
+                  <Label className="text-sm font-medium mb-3 block">Compression Mode</Label>
                   <div className="space-y-3">
                     {([
                       { value: 'balanced', label: 'Balanced', description: 'Quality priority (±5KB tolerance, 90s timeout)', recommended: true },
                       { value: 'exact', label: 'Exact', description: 'Size priority (minimum possible size, 90s timeout)', recommended: false }
                     ] as const).map((modeOption) => (
-                      <label key={modeOption.value} className="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border border-gray-600 hover:border-orange-500 transition-colors">
+                      <Label key={modeOption.value} className="flex items-start space-x-3 cursor-pointer p-3 rounded-lg border border-border hover:border-primary transition-colors">
                         <input
                           type="radio"
                           name="mode"
                           value={modeOption.value}
                           checked={mode === modeOption.value}
                           onChange={(e) => setMode(e.target.value as 'exact' | 'balanced')}
-                          className="w-4 h-4 text-orange-500 bg-gray-800 border-gray-600 focus:ring-orange-500 mt-0.5"
+                          className="w-4 h-4 text-primary bg-background border-border focus:ring-primary mt-0.5"
                         />
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">{modeOption.label}</span>
                             {modeOption.recommended && (
-                              <span className="text-xs bg-orange-500 text-black px-2 py-0.5 rounded-full font-medium">RECOMMENDED</span>
+                              <Badge variant="default" className="text-xs">RECOMMENDED</Badge>
                             )}
                           </div>
-                          <p className="text-xs text-gray-400 mt-1">{modeOption.description}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{modeOption.description}</p>
                         </div>
-                      </label>
+                      </Label>
                     ))}
                   </div>
                 </div>
 
                 {/* Compress Button */}
-                <button
+                <Button
                   onClick={handleCompress}
                   disabled={!selectedFile || isCompressing}
-                  className="inline-flex items-center justify-center rounded-xl bg-orange-500 text-black font-semibold transition-all duration-200 shadow-lg shadow-orange-500/30 w-full h-12 text-lg mt-6 hover:bg-orange-400 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-orange-500/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:pointer-events-none disabled:opacity-60 disabled:transform-none disabled:shadow-none"
+                  className="w-full h-12 text-lg mt-6"
+                  size="lg"
                 >
                   {isCompressing ? (
                     <>
@@ -413,62 +428,64 @@ export default function Home() {
                   ) : (
                     <span>Compress for Maximum Size Reduction ({mode === 'exact' ? 'Exact' : 'Balanced'})</span>
                   )}
-                </button>
+                </Button>
 
                 {/* Progress Bar */}
                 {isCompressing && (
                   <div className="mt-4">
-                    <div className="relative w-full h-2 bg-gray-800 rounded overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-orange-500 via-orange-400 to-orange-500 rounded transition-all duration-500 ease-out relative" 
-                        style={{ width: `${progressPercent}%` }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-gray-400 mt-2 text-center animate-pulse">{compressionProgress}</div>
+                    <Progress value={progressPercent} className="w-full" />
+                    <div className="text-sm text-muted-foreground mt-2 text-center animate-pulse">{compressionProgress}</div>
                   </div>
                 )}
-              </div>
+                </CardContent>
+              </Card>
 
               {/* Preview */}
               {previewUrl && (
-                <div className="rounded-2xl border border-gray-600 bg-gray-800 shadow-2xl shadow-black/40 p-6">
-                  <h3 className="text-lg font-semibold mb-4">Preview</h3>
-                  <div className="relative">
-        <Image
-                      src={previewUrl}
-                      alt="Original image preview"
-                      width={400}
-                      height={300}
-                      className="rounded-lg w-full h-auto"
-                      style={{ objectFit: 'contain' }}
-          priority
-        />
-                  </div>
-                </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileImage className="h-5 w-5" />
+                      Preview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="relative">
+                      <Image
+                        src={previewUrl}
+                        alt="Original image preview"
+                        width={400}
+                        height={300}
+                        className="rounded-lg w-full h-auto"
+                        style={{ objectFit: 'contain' }}
+                        priority
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
               )}
             </div>
 
             {/* Results Section */}
             <div className="space-y-6">
               {error && (
-                <div className="rounded-2xl border border-red-500/20 bg-red-500/5 shadow-2xl shadow-black/40 p-6">
-                  <div className="flex items-center space-x-3">
-                    <svg className="w-6 h-6 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div>
-                      <h3 className="text-red-400 font-semibold">Error</h3>
-                      <p className="text-red-300 text-sm mt-1">{error}</p>
-                    </div>
-                  </div>
-                </div>
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    {error}
+                  </AlertDescription>
+                </Alert>
               )}
 
               {result && (
-                <div className="rounded-2xl border border-gray-600 bg-gray-800 shadow-2xl shadow-black/40 p-6">
-                  <h2 className="text-xl font-semibold mb-4">Results</h2>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Results
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
                   
                   {/* Success Status */}
                   <div className={`p-4 rounded-lg mb-6 ${result.exactMatch ? 'bg-green-500/10 border border-green-500/20' : 'bg-orange-500/10 border border-orange-500/20'}`}>
@@ -550,12 +567,22 @@ export default function Home() {
                       </div>
                     </div>
                   )}
-                </div>
+                  </CardContent>
+                </Card>
               )}
 
               {/* How It Works */}
-              <div className="rounded-2xl border border-gray-600 bg-gray-800 shadow-2xl shadow-black/40 p-6">
-                <h3 className="text-lg font-semibold mb-6">How It Works</h3>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    How It Works
+                  </CardTitle>
+                  <CardDescription>
+                    Advanced compression techniques for maximum file size reduction
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
                 
                 {/* Step-by-step Process */}
                 <div className="space-y-4 mb-6">
@@ -589,8 +616,8 @@ export default function Home() {
                     <p className="text-sm text-gray-300">Identical images are served instantly from cache, while similar images benefit from our predictive algorithms. Sub-second responses for 60%+ of requests!</p>
                   </div>
                 </div>
-
-              </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
@@ -599,37 +626,35 @@ export default function Home() {
       {/* PWA Install Prompt */}
       {showInstallPrompt && (
         <div className="fixed bottom-4 left-4 right-4 z-50">
-          <div className="bg-gray-800 border border-gray-600 rounded-2xl p-4 shadow-2xl shadow-black/40">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                  </svg>
+          <Card className="bg-card border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center">
+                    <Download className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Install PixelPress</h4>
+                    <p className="text-sm text-muted-foreground">Get quick access to image compression</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-white">Install PixelPress</h4>
-                  <p className="text-sm text-gray-400">Get quick access to image compression</p>
+                <div className="flex space-x-2">
+                  <Button onClick={handleInstallPWA} size="sm">
+                    Install
+                  </Button>
+                  <Button 
+                    onClick={() => setShowInstallPrompt(false)} 
+                    variant="ghost" 
+                    size="sm"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </Button>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleInstallPWA}
-                  className="bg-orange-500 text-black font-semibold px-4 py-2 rounded-xl hover:bg-orange-400 transition-colors"
-                >
-                  Install
-                </button>
-                <button
-                  onClick={() => setShowInstallPrompt(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
