@@ -7,18 +7,19 @@ import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import sharp from 'sharp';
-import { compressToExactSize, EXACT80_BYTES } from '../src/lib/exact80/search';
-import type { Exact80Result, OutputFormat } from '../src/lib/exact80/types';
+import { compressToExactSize, EXACT80_BYTES } from '../src/lib/exact80/core/search';
+import { sharpCodec } from '../src/lib/exact80/codecs/sharp';
+import type { Exact80Result, OutputFormat } from '../src/lib/exact80/core/types';
 
 const PHOTO = 'public/merve-kalafat-yilmaz-7B3TPCkHhYw-unsplash.jpg';
 
 /** Every result must satisfy these, no matter the input. */
 async function assertExactAndDecodable(result: Exact80Result, format: OutputFormat) {
   assert.equal(result.bytes, EXACT80_BYTES, 'output must be exactly 80,000 bytes');
-  assert.equal(result.buffer.length, EXACT80_BYTES, 'buffer length must match the reported size');
+  assert.equal(result.data.length, EXACT80_BYTES, 'buffer length must match the reported size');
   assert.equal(result.encodedBytes + result.padBytes, EXACT80_BYTES);
 
-  const meta = await sharp(result.buffer).metadata();
+  const meta = await sharp(result.data).metadata();
   assert.equal(meta.width, result.width, 'decoded width must match the reported width');
   assert.equal(meta.height, result.height, 'decoded height must match the reported height');
 
@@ -26,7 +27,7 @@ async function assertExactAndDecodable(result: Exact80Result, format: OutputForm
   assert.equal(meta.format, format === 'webp' ? 'webp' : 'heif');
 
   // A decode of all pixels proves the padding did not corrupt the bitstream.
-  const pixels = await sharp(result.buffer).raw().toBuffer();
+  const pixels = await sharp(result.data).raw().toBuffer();
   assert.ok(pixels.length > 0);
 }
 
@@ -40,7 +41,7 @@ describe('a large photograph', () => {
 
   for (const format of ['webp', 'avif'] as const) {
     test(`${format}: lands on the target and stays recognizable`, async () => {
-      const result = await compressToExactSize(input, format);
+      const result = await compressToExactSize(input, format, sharpCodec);
 
       await assertExactAndDecodable(result, format);
 
@@ -51,7 +52,7 @@ describe('a large photograph', () => {
   }
 
   test('chooses resolution and quality together, not quality alone', async () => {
-    const result = await compressToExactSize(input, 'webp');
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
 
     // The failure this guards against: squeezing a full-size photo into the
     // budget by collapsing quality, which is what makes 80KB images look bad.
@@ -67,11 +68,11 @@ describe('a large photograph', () => {
 
   test('is deterministic', async () => {
     const [first, second] = await Promise.all([
-      compressToExactSize(input, 'webp'),
-      compressToExactSize(input, 'webp'),
+      compressToExactSize(input, 'webp', sharpCodec),
+      compressToExactSize(input, 'webp', sharpCodec),
     ]);
 
-    assert.ok(first.buffer.equals(second.buffer), 'same input must produce the same bytes');
+    assert.ok(Buffer.from(first.data).equals(second.data), 'same input must produce the same bytes');
   });
 });
 
@@ -83,7 +84,7 @@ describe('images that are already small', () => {
       .png()
       .toBuffer();
 
-    const result = await compressToExactSize(input, 'webp');
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
 
     await assertExactAndDecodable(result, 'webp');
     assert.equal(result.width, 160, 'must not upscale');
@@ -102,8 +103,8 @@ describe('awkward inputs', () => {
       .png()
       .toBuffer();
 
-    const result = await compressToExactSize(input, 'webp');
-    const meta = await sharp(result.buffer).metadata();
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
+    const meta = await sharp(result.data).metadata();
 
     await assertExactAndDecodable(result, 'webp');
     assert.equal(meta.hasAlpha, true, 'alpha channel was dropped');
@@ -117,7 +118,7 @@ describe('awkward inputs', () => {
       .png()
       .toBuffer();
 
-    const result = await compressToExactSize(input, 'webp');
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
     await assertExactAndDecodable(result, 'webp');
   });
 
@@ -128,7 +129,7 @@ describe('awkward inputs', () => {
       .jpeg()
       .toBuffer();
 
-    const result = await compressToExactSize(input, 'webp');
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
 
     await assertExactAndDecodable(result, 'webp');
     const ratio = result.width / result.height;
@@ -146,7 +147,7 @@ describe('awkward inputs', () => {
       .jpeg()
       .toBuffer();
 
-    const result = await compressToExactSize(input, 'webp');
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
 
     await assertExactAndDecodable(result, 'webp');
     assert.ok(result.height > result.width, 'rotation was not applied before sizing');
@@ -156,12 +157,12 @@ describe('awkward inputs', () => {
     const input = await sharp({
       create: { width: 1200, height: 900, channels: 3, background: '#777' },
     })
-      .withExif({ IFD0: { Copyright: 'test' }, GPS: { GPSLatitudeRef: 'N' } })
+      .withExif({ IFD0: { Copyright: 'test' }, IFD3: { GPSLatitudeRef: 'N' } }) // IFD3 is the GPS block
       .jpeg()
       .toBuffer();
 
-    const result = await compressToExactSize(input, 'webp');
-    const meta = await sharp(result.buffer).metadata();
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
+    const meta = await sharp(result.data).metadata();
 
     assert.equal(meta.exif, undefined, 'EXIF survived into the output');
   });
@@ -170,7 +171,7 @@ describe('awkward inputs', () => {
 describe('the search stays cheap', () => {
   test('a photo needs only a handful of encodes', async () => {
     const input = await readFile(PHOTO);
-    const result = await compressToExactSize(input, 'webp');
+    const result = await compressToExactSize(input, 'webp', sharpCodec);
 
     assert.ok(result.encodes <= 40, `${result.encodes} encodes is more work than expected`);
   });

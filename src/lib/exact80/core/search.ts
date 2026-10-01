@@ -5,7 +5,7 @@
  * At a fixed byte budget there is one real trade-off — resolution against
  * quality. Dropping quality alone is what makes "compressed to 80KB" look bad:
  * a 2400px photo squeezed into 80KB is a smear, while the same photo at 1200px
- * and quality 70 fits the same budget and looks fine. So the search explores
+ * and quality 60 fits the same budget and looks fine. So the search explores
  * both axes and lets the perceptual score decide:
  *
  *   1. One cheap probe predicts roughly which resolution the budget allows.
@@ -15,12 +15,22 @@
  *   4. The winner is padded up to exactly the target.
  *
  * Step 3 is the part that matters. Steps 1 and 2 only keep the work bounded.
+ *
+ * Everything here goes through the `Codec` interface, so the same search runs on
+ * sharp on a server and on WebAssembly in a browser tab.
  */
 
 import { canPadTo, padToExact } from './pad';
-import { loadSource, ResolutionEncoder, type SourceImage } from './encode';
-import { createScorer } from './score';
-import type { Candidate, Exact80Result, OutputFormat, ScoredCandidate, SearchOptions } from './types';
+import { createScorer } from './ssim';
+import type {
+  Candidate,
+  Codec,
+  Exact80Result,
+  OutputFormat,
+  RasterImage,
+  ScoredCandidate,
+  SearchOptions,
+} from './types';
 
 /** The one number this product is about. */
 export const EXACT80_BYTES = 80_000;
@@ -58,32 +68,39 @@ const PROBE_EDGE = 1024;
 const PROBE_QUALITY = 70;
 
 export async function compressToExactSize(
-  input: Buffer,
+  input: Uint8Array,
   format: OutputFormat,
+  codec: Codec,
   options: SearchOptions = {}
 ): Promise<Exact80Result> {
-  const { target, minQuality, maxQuality, minEdge, budgetMs } = { ...DEFAULTS, ...options };
+  const { target, minQuality, maxQuality, minEdge, budgetMs, onProgress } = {
+    ...DEFAULTS,
+    ...options,
+  };
   const startedAt = Date.now();
 
-  const source = await loadSource(input);
+  onProgress?.('decoding');
+  const source = await codec.decode(input);
   const longestEdge = Math.max(source.width, source.height);
   const ladder = buildLadder(longestEdge, minEdge);
 
-  const encoders = new Map<number, ResolutionEncoder>();
-  const encoderFor = (edge: number) => {
-    let encoder = encoders.get(edge);
-    if (!encoder) {
-      encoder = new ResolutionEncoder(source, edge);
-      encoders.set(edge, encoder);
+  const resolutions = new Map<number, Resolution>();
+  const resolutionFor = (edge: number) => {
+    let resolution = resolutions.get(edge);
+    if (!resolution) {
+      resolution = new Resolution(codec, source, edge);
+      resolutions.set(edge, resolution);
     }
-    return encoder;
+    return resolution;
   };
-  const totalEncodes = () => [...encoders.values()].reduce((sum, e) => sum + e.encodeCount, 0);
+  const totalEncodes = () => [...resolutions.values()].reduce((sum, r) => sum + r.encodeCount, 0);
 
   const finish = (winner: ScoredCandidate): Exact80Result => {
-    const padded = padToExact(winner.buffer, target, format);
+    const padded = padToExact(winner.data, target, format);
+    onProgress?.('done');
+
     return {
-      buffer: padded,
+      data: padded,
       format,
       bytes: padded.length,
       encodedBytes: winner.bytes,
@@ -93,6 +110,8 @@ export async function compressToExactSize(
       quality: winner.quality,
       score: winner.score,
       resized: winner.edge < longestEdge,
+      sourceWidth: source.width,
+      sourceHeight: source.height,
       encodes: totalEncodes(),
       ms: Date.now() - startedAt,
     };
@@ -100,48 +119,61 @@ export async function compressToExactSize(
 
   // Fast path: a small image may already fit at full resolution and top quality,
   // and nothing can beat that, so there is no need to score anything.
-  const fullRes = encoderFor(ladder[0]);
-  const best = await fullRes.encode(maxQuality, format);
-  if (canPadTo(best.bytes, target, format)) {
-    return finish({ ...best, score: 1 });
+  onProgress?.('probing');
+  const full = await resolutionFor(ladder[0]).encode(maxQuality, format);
+  if (canPadTo(full.bytes, target, format)) {
+    return finish({ ...full, score: 1 });
   }
 
-  const scorer = await createScorer(
-    { buffer: source.buffer, raw: { width: source.width, height: source.height, channels: source.channels as 1 | 2 | 3 | 4 } },
-    source.width,
-    source.height
-  );
+  const scorer = await createScorer(codec, source);
 
   // Step 1: predict the resolution the budget allows. Bytes scale with pixel
   // area, so the edge scales with the square root of the size ratio.
-  const probe = await encoderFor(nearestLadderEdge(ladder, PROBE_EDGE)).encode(PROBE_QUALITY, format);
+  const probe = await resolutionFor(nearestLadderEdge(ladder, PROBE_EDGE)).encode(
+    PROBE_QUALITY,
+    format
+  );
   const predictedEdge = clamp(
     Math.round(probe.edge * Math.sqrt(target / probe.bytes)),
     minEdge,
     longestEdge
   );
 
-  // Step 2 and 3: binary-search quality at the predicted resolution and its
+  // Steps 2 and 3: binary-search quality at the predicted resolution and its
   // neighbours, score each winner, keep the best-looking one.
+  onProgress?.('searching');
   const scored: ScoredCandidate[] = [];
   for (const edge of candidateEdges(ladder, predictedEdge)) {
     if (Date.now() - startedAt > budgetMs && scored.length > 0) break;
 
-    const winner = await highestQualityThatFits(encoderFor(edge), format, minQuality, maxQuality, target);
+    const winner = await highestQualityThatFits(
+      resolutionFor(edge),
+      format,
+      minQuality,
+      maxQuality,
+      target
+    );
     if (!winner) {
-      encoderFor(edge).release(); // too big even at the quality floor
+      resolutionFor(edge).release(); // too big even at the quality floor
       continue;
     }
 
-    scored.push({ ...winner, score: await scorer(winner.buffer) });
+    onProgress?.('scoring');
+    scored.push({ ...winner, score: await scorer(await codec.decode(winner.data)) });
   }
 
   // Nothing fit near the prediction, so walk the ladder down until something does.
   if (scored.length === 0) {
     for (const edge of ladder.filter((e) => e < predictedEdge)) {
-      const winner = await highestQualityThatFits(encoderFor(edge), format, minQuality, maxQuality, target);
+      const winner = await highestQualityThatFits(
+        resolutionFor(edge),
+        format,
+        minQuality,
+        maxQuality,
+        target
+      );
       if (winner) {
-        scored.push({ ...winner, score: await scorer(winner.buffer) });
+        scored.push({ ...winner, score: await scorer(await codec.decode(winner.data)) });
         break;
       }
     }
@@ -157,6 +189,68 @@ export async function compressToExactSize(
 }
 
 /**
+ * One resolution, encoded at any quality.
+ *
+ * The search tries many qualities at the same resolution, so resizing once and
+ * keeping the pixels makes every later encode cheap — resizing is the expensive
+ * half of the work.
+ */
+class Resolution {
+  readonly edge: number;
+  readonly width: number;
+  readonly height: number;
+
+  private pixels: RasterImage | null = null;
+  private encodes = 0;
+
+  constructor(
+    private readonly codec: Codec,
+    private readonly source: RasterImage,
+    edge: number
+  ) {
+    const longest = Math.max(source.width, source.height);
+    const scale = Math.min(1, edge / longest);
+
+    this.edge = Math.min(edge, longest);
+    this.width = Math.max(1, Math.round(source.width * scale));
+    this.height = Math.max(1, Math.round(source.height * scale));
+  }
+
+  get encodeCount(): number {
+    return this.encodes;
+  }
+
+  private async getPixels(): Promise<RasterImage> {
+    if (!this.pixels) {
+      this.pixels =
+        this.width === this.source.width && this.height === this.source.height
+          ? this.source
+          : await this.codec.resize(this.source, this.width, this.height);
+    }
+    return this.pixels;
+  }
+
+  async encode(quality: number, format: OutputFormat): Promise<Candidate> {
+    const data = await this.codec.encode(await this.getPixels(), format, quality);
+    this.encodes++;
+
+    return {
+      edge: this.edge,
+      width: this.width,
+      height: this.height,
+      quality,
+      bytes: data.length,
+      data,
+    };
+  }
+
+  /** Free the resized pixels once this resolution is no longer a contender. */
+  release(): void {
+    if (this.pixels !== this.source) this.pixels = null;
+  }
+}
+
+/**
  * Highest quality whose encode leaves a paddable gap, or null if even the
  * quality floor overshoots.
  *
@@ -164,7 +258,7 @@ export async function compressToExactSize(
  * fitting candidate seen rather than trusting the final bounds.
  */
 async function highestQualityThatFits(
-  encoder: ResolutionEncoder,
+  resolution: Resolution,
   format: OutputFormat,
   minQuality: number,
   maxQuality: number,
@@ -176,7 +270,7 @@ async function highestQualityThatFits(
 
   while (low <= high) {
     const mid = (low + high) >> 1;
-    const candidate = await encoder.encode(mid, format);
+    const candidate = await resolution.encode(mid, format);
 
     if (canPadTo(candidate.bytes, target, format)) {
       if (!best || candidate.quality > best.quality) best = candidate;
@@ -219,5 +313,3 @@ function candidateEdges(ladder: number[], predictedEdge: number): number[] {
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
-
-export type { Exact80Result, OutputFormat, SearchOptions, SourceImage };

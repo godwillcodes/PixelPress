@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -19,10 +18,10 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "PixelPress - Maximum Image Compression",
+    default: "PixelPress — every image, exactly 80 KB",
     template: "%s | PixelPress"
   },
-  description: "Professional image compression tool that converts JPEG, JPG, and PNG images to WebP or AVIF with maximum compression while preserving visual fidelity through advanced binary search algorithms.",
+  description: "Compress any image to exactly 80,000 bytes of WebP or AVIF. The best-looking version that fits, chosen by comparing candidates against the original. Runs in your browser; nothing is uploaded.",
   keywords: [
     "image compression",
     "WebP converter",
@@ -30,8 +29,8 @@ export const metadata: Metadata = {
     "JPEG optimization",
     "PNG compression",
     "exact file size",
-    "maximum compression",
-    "binary search algorithm",
+    "80KB image",
+    "browser image compression",
     "image optimization",
     "web performance",
     "Next.js image tool",
@@ -45,33 +44,22 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://pixelpress.com"),
+  metadataBase: new URL("https://pixelpress.vercel.app"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://exact80.com",
+    url: "https://pixelpress.vercel.app",
     siteName: "PixelPress",
-    title: "PixelPress - Maximum Image Compression",
-    description: "Convert images to WebP or AVIF with maximum compression. Professional image compression with advanced binary search algorithms.",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "PixelPress - Maximum Image Compression Tool",
-        type: "image/png",
-      },
-    ],
+    title: "PixelPress — every image, exactly 80 KB",
+    description: "Compress any image to exactly 80,000 bytes of WebP or AVIF, in your browser.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Exact80 - Precision Image Compression to 80KB",
-    description: "Convert images to WebP or AVIF with byte-exact control targeting exactly 80,000 bytes.",
-    images: ["/og-image.png"],
-    creator: "@exact80",
+    title: "PixelPress — every image, exactly 80 KB",
+    description: "Compress any image to exactly 80,000 bytes of WebP or AVIF, in your browser.",
   },
   robots: {
     index: true,
@@ -83,11 +71,6 @@ export const metadata: Metadata = {
       "max-image-preview": "large",
       "max-snippet": -1,
     },
-  },
-  verification: {
-    google: "your-google-verification-code",
-    yandex: "your-yandex-verification-code",
-    yahoo: "your-yahoo-verification-code",
   },
 };
 
@@ -101,16 +84,6 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#f97316" />
-        <meta name="color-scheme" content="dark" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="PixelPress" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="msapplication-TileColor" content="#000000" />
-        <meta name="msapplication-config" content="/browserconfig.xml" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -118,8 +91,8 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "WebApplication",
               "name": "PixelPress",
-              "description": "Maximum image compression tool for optimal file sizes",
-              "url": "https://pixelpress.com",
+              "description": "Compress any image to exactly 80,000 bytes of WebP or AVIF, in your browser.",
+              "url": "https://pixelpress.vercel.app",
               "applicationCategory": "MultimediaApplication",
               "operatingSystem": "Web Browser",
               "offers": {
@@ -132,11 +105,10 @@ export default function RootLayout({
                 "name": "PixelPress Team"
               },
               "featureList": [
-                "Maximum compression optimization",
-                "WebP and AVIF format support",
-                "Binary search algorithm optimization",
-                "Deterministic output",
-                "Real-time compression metrics"
+                "Exact 80,000-byte output",
+                "WebP and AVIF",
+                "Runs in the browser, no upload",
+                "Deterministic output"
               ]
             })
           }}
@@ -146,7 +118,6 @@ export default function RootLayout({
         className={`${inter.variable} ${jetbrainsMono.variable} antialiased font-sans`}
       >
         {children}
-        <ServiceWorkerRegistration />
       </body>
     </html>
   );

@@ -22,7 +22,7 @@
  * needs a WASM build; SSIM is close enough to rank candidates today.
  */
 
-import sharp from 'sharp';
+import type { Codec, RasterImage } from './types';
 
 /**
  * Scoring is capped at this longest edge to bound the cost on huge originals.
@@ -39,36 +39,10 @@ const STRIDE = 4;
 const C1 = (0.01 * 255) ** 2;
 const C2 = (0.03 * 255) ** 2;
 
-/** Either an encoded image, or raw pixels with the shape needed to read them. */
-export type ImageInput =
-  | Buffer
-  | { buffer: Buffer; raw: { width: number; height: number; channels: 1 | 2 | 3 | 4 } };
-
 interface GrayImage {
-  data: Buffer;
+  data: Uint8Array;
   width: number;
   height: number;
-}
-
-function open(input: ImageInput): sharp.Sharp {
-  return Buffer.isBuffer(input) ? sharp(input) : sharp(input.buffer, { raw: input.raw });
-}
-
-/**
- * Reduce an image to grayscale on the reference pixel grid.
- *
- * `fit: 'fill'` is deliberate: a candidate that was downscaled gets scaled back
- * up here, putting both images on an identical grid so SSIM compares like with
- * like — and so the detail the candidate lost shows up as a lower score.
- */
-async function toReferenceGray(input: ImageInput, width: number, height: number): Promise<GrayImage> {
-  const { data, info } = await open(input)
-    .resize({ width, height, fit: 'fill', kernel: sharp.kernel.lanczos3 })
-    .grayscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  return { data, width: info.width, height: info.height };
 }
 
 /** The grid both images are compared on: the original's size, capped for cost. */
@@ -80,10 +54,20 @@ export function referenceDimensions(width: number, height: number): { width: num
   };
 }
 
-/**
- * Mean SSIM over a sliding window. 1.0 means identical.
- */
-function ssim(a: GrayImage, b: GrayImage): number {
+/** Rec. 601 luma, which is what SSIM is normally computed on. */
+export function toGrayscale(image: RasterImage): GrayImage {
+  const gray = new Uint8Array(image.width * image.height);
+
+  for (let i = 0; i < gray.length; i++) {
+    const p = i * 4;
+    gray[i] = (image.data[p] * 299 + image.data[p + 1] * 587 + image.data[p + 2] * 114) / 1000;
+  }
+
+  return { data: gray, width: image.width, height: image.height };
+}
+
+/** Mean SSIM over a sliding window. 1.0 means identical. */
+export function ssim(a: GrayImage, b: GrayImage): number {
   const { width, height } = a;
   let total = 0;
   let windows = 0;
@@ -130,17 +114,20 @@ function ssim(a: GrayImage, b: GrayImage): number {
 
 /**
  * Prepare the original once, then score any number of candidates against it.
+ *
+ * Candidates arrive already decoded, and are scaled back up to the reference
+ * grid here — which is where a downscaled candidate pays for the detail it
+ * cannot reproduce.
  */
 export async function createScorer(
-  original: ImageInput,
-  width: number,
-  height: number
-): Promise<(candidate: Buffer) => Promise<number>> {
-  const reference = referenceDimensions(width, height);
-  const originalGray = await toReferenceGray(original, reference.width, reference.height);
+  codec: Codec,
+  original: RasterImage
+): Promise<(candidate: RasterImage) => Promise<number>> {
+  const reference = referenceDimensions(original.width, original.height);
+  const originalGray = toGrayscale(await codec.resize(original, reference.width, reference.height));
 
-  return async (candidate: Buffer) => {
-    const candidateGray = await toReferenceGray(candidate, reference.width, reference.height);
-    return ssim(originalGray, candidateGray);
+  return async (candidate: RasterImage) => {
+    const resized = await codec.resize(candidate, reference.width, reference.height);
+    return ssim(originalGray, toGrayscale(resized));
   };
 }

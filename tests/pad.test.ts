@@ -6,9 +6,13 @@
 import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
 import sharp from 'sharp';
-import { canPadTo, padToExact, MIN_PAD_BYTES } from '../src/lib/exact80/pad';
+import { canPadTo, padToExact, MIN_PAD_BYTES } from '../src/lib/exact80/core/pad';
 
 const TARGET = 80_000;
+
+/** Read a fixed ASCII tag out of a container header. */
+const ascii = (data: Uint8Array, start: number, end: number) =>
+  String.fromCharCode(...data.subarray(start, end));
 
 let webp: Buffer;
 let avif: Buffer;
@@ -52,8 +56,8 @@ describe('padToExact', () => {
     const padded = padToExact(webp, TARGET, 'webp');
 
     assert.equal(padded.length, TARGET);
-    assert.equal(padded.readUInt32LE(4), TARGET - 8, 'RIFF size must cover everything after it');
-    assert.equal(padded.toString('latin1', 0, 4), 'RIFF');
+    assert.equal(new DataView(padded.buffer).getUint32(4, true), TARGET - 8, 'RIFF size must cover everything after it');
+    assert.equal(ascii(padded, 0, 4), 'RIFF');
   });
 
   test('AVIF reaches the target exactly and ends in a free box', () => {
@@ -61,8 +65,8 @@ describe('padToExact', () => {
     const boxStart = avif.length;
 
     assert.equal(padded.length, TARGET);
-    assert.equal(padded.readUInt32BE(boxStart), TARGET - boxStart, 'box size includes its header');
-    assert.equal(padded.toString('latin1', boxStart + 4, boxStart + 8), 'free');
+    assert.equal(new DataView(padded.buffer).getUint32(boxStart), TARGET - boxStart, 'box size includes its header');
+    assert.equal(ascii(padded, boxStart + 4, boxStart + 8), 'free');
   });
 
   test('padded files decode to identical pixels', async () => {
@@ -84,7 +88,7 @@ describe('padToExact', () => {
 
   test('a file already at the target is returned untouched', () => {
     const exact = padToExact(webp, webp.length, 'webp');
-    assert.ok(exact.equals(webp));
+    assert.ok(Buffer.from(exact).equals(webp));
   });
 
   test('an unfillable gap throws rather than guessing', () => {
