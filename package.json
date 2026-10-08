@@ -1,5 +1,5 @@
 {
-  "name": "pixelpress",
+  "name": "exact80",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -7,7 +7,9 @@
     "build": "pnpm build:codecs && next build --turbopack",
     "start": "next start",
     "build:codecs": "node scripts/build-codecs.mjs",
-    "test": "node --import tsx --test tests/*.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "build:gallery": "node --import tsx scripts/build-gallery.mts",
+    "build:cli": "node scripts/build-cli.mjs"
   },
   "dependencies": {
     "@jsquash/avif": "^2.1.1",
@@ -24,6 +26,7 @@
     "next": "15.5.5",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "sharp": "0.34.4",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7"
   },
@@ -33,9 +36,17 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "esbuild": "^0.28.2",
-    "sharp": "0.34.4",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
     "typescript": "^5"
-  }
+  },
+  "description": "Compress any image to exactly 80,000 bytes of WebP or AVIF.",
+  "bin": {
+    "exact80": "dist/exact80.mjs"
+  },
+  "files": [
+    "dist",
+    "src/lib/exact80",
+    "README.md"
+  ]
 }

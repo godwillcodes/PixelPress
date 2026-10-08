@@ -1,0 +1,91 @@
+name: Exact80
+description: Compress images to an exact byte size, and report what it saved.
+author: Godwill Barasa
+
+branding:
+  icon: minimize-2
+  color: blue
+
+inputs:
+  paths:
+    description: Files or directories to compress, separated by spaces.
+    required: false
+    default: images
+  format:
+    description: avif or webp.
+    required: false
+    default: avif
+  target:
+    description: Exact output size in bytes.
+    required: false
+    default: '80000'
+  out:
+    description: Where to write the compressed images.
+    required: false
+    default: exact80-out
+  comment:
+    description: Comment the results on the pull request. Needs `pull-requests: write`.
+    required: false
+    default: 'false'
+  fail-on-error:
+    description: Fail the job if any image could not be compressed.
+    required: false
+    default: 'true'
+
+outputs:
+  saved-bytes:
+    description: Total bytes saved across every image.
+    value: ${{ steps.compress.outputs.saved-bytes }}
+  count:
+    description: How many images were compressed.
+    value: ${{ steps.compress.outputs.count }}
+  results:
+    description: Path to a JSON Lines file, one record per image.
+    value: ${{ steps.compress.outputs.results }}
+
+runs:
+  using: composite
+  steps:
+    # sharp ships native binaries, so it cannot be bundled into the CLI and is
+    # installed beside it here. Node resolves it from the action's own
+    # node_modules, next to dist/exact80.mjs.
+    - name: Install the image codecs
+      shell: bash
+      run: npm install --no-save --no-audit --no-fund --prefix "$GITHUB_ACTION_PATH" sharp@0.34.4
+
+    - name: Compress
+      id: compress
+      shell: bash
+      env:
+        INPUT_PATHS: ${{ inputs.paths }}
+        INPUT_FORMAT: ${{ inputs.format }}
+        INPUT_TARGET: ${{ inputs.target }}
+        INPUT_OUT: ${{ inputs.out }}
+        FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+      run: |
+        set -o pipefail
+        results="$RUNNER_TEMP/exact80-results.jsonl"
+
+        status=0
+        node "$GITHUB_ACTION_PATH/dist/exact80.mjs" $INPUT_PATHS \
+          --format "$INPUT_FORMAT" \
+          --target "$INPUT_TARGET" \
+          --out "$INPUT_OUT" \
+          --json > "$results" || status=$?
+
+        node "$GITHUB_ACTION_PATH/scripts/action-report.mjs" "$results" "$INPUT_TARGET"
+
+        if [ "$status" -ne 0 ] && [ "$FAIL_ON_ERROR" = "true" ]; then
+          echo "::error::Some images could not be compressed"
+          exit "$status"
+        fi
+
+    - name: Comment on the pull request
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh pr comment "${{ github.event.pull_request.number }}" \
+          --body-file "$RUNNER_TEMP/exact80-comment.md" \
+          --repo "${{ github.repository }}"

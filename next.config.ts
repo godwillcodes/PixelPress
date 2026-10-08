@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // sharp ships native binaries; the API route loads it at runtime.
+  serverExternalPackages: ["sharp"],
+
   async headers() {
     return [
       {

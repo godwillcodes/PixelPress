@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { zip } from 'fflate';
 import { Download, Loader2 } from 'lucide-react';
 import DropZone from '@/components/DropZone';
@@ -60,6 +61,11 @@ export default function Home() {
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             Drop an image and get it back as WebP or AVIF at exactly 80,000 bytes — the
             best-looking version that fits. It runs on your device, so nothing is uploaded.
+          </p>
+          <p className="mt-4 text-sm">
+            <Link href="/gallery" className="font-medium text-primary underline-offset-4 hover:underline">
+              See what 80 KB looks like →
+            </Link>
           </p>
         </div>
       </header>
@@ -131,6 +137,29 @@ export default function Home() {
             into 80 KB by dropping quality alone looks bad, so each candidate size is scored
             against the original and the one that survives best wins — which usually means a
             smaller, cleaner image.
+          </p>
+
+          <h2 className="pt-3 font-medium text-foreground">In a build, or from a terminal</h2>
+          <p>
+            The same engine runs as a command and as an endpoint, for the images you never open a
+            browser for.
+          </p>
+          <pre className="overflow-x-auto rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs text-foreground">
+            <code>{`npx exact80 ./images --format webp
+
+curl -X POST https://exact80.vercel.app/api/compress \\
+  -F image=@photo.jpg -o photo.avif`}</code>
+          </pre>
+          <p>
+            There is a GitHub Action too, which compresses the images in a pull request and comments
+            with what it saved. The{' '}
+            <a
+              href="https://github.com/godwillcodes/PixelPress#readme"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              README
+            </a>{' '}
+            has the details.
           </p>
         </section>
       </main>

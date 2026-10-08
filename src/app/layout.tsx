@@ -18,8 +18,8 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "PixelPress — every image, exactly 80 KB",
-    template: "%s | PixelPress"
+    default: "Exact80 — every image, exactly 80 KB",
+    template: "%s | Exact80"
   },
   description: "Compress any image to exactly 80,000 bytes of WebP or AVIF. The best-looking version that fits, chosen by comparing candidates against the original. Runs in your browser; nothing is uploaded.",
   keywords: [
@@ -36,29 +36,29 @@ export const metadata: Metadata = {
     "Next.js image tool",
     "precision compression"
   ],
-  authors: [{ name: "PixelPress Team" }],
-  creator: "PixelPress",
-  publisher: "PixelPress",
+  authors: [{ name: "Godwill Barasa" }],
+  creator: "Exact80",
+  publisher: "Exact80",
   formatDetection: {
     email: false,
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://pixelpress.vercel.app"),
+  metadataBase: new URL("https://exact80.vercel.app"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://pixelpress.vercel.app",
-    siteName: "PixelPress",
-    title: "PixelPress — every image, exactly 80 KB",
+    url: "https://exact80.vercel.app",
+    siteName: "Exact80",
+    title: "Exact80 — every image, exactly 80 KB",
     description: "Compress any image to exactly 80,000 bytes of WebP or AVIF, in your browser.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "PixelPress — every image, exactly 80 KB",
+    title: "Exact80 — every image, exactly 80 KB",
     description: "Compress any image to exactly 80,000 bytes of WebP or AVIF, in your browser.",
   },
   robots: {
@@ -90,9 +90,9 @@ export default function RootLayout({
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebApplication",
-              "name": "PixelPress",
+              "name": "Exact80",
               "description": "Compress any image to exactly 80,000 bytes of WebP or AVIF, in your browser.",
-              "url": "https://pixelpress.vercel.app",
+              "url": "https://exact80.vercel.app",
               "applicationCategory": "MultimediaApplication",
               "operatingSystem": "Web Browser",
               "offers": {
@@ -101,8 +101,8 @@ export default function RootLayout({
                 "priceCurrency": "USD"
               },
               "creator": {
-                "@type": "Organization",
-                "name": "PixelPress Team"
+                "@type": "Person",
+                "name": "Godwill Barasa"
               },
               "featureList": [
                 "Exact 80,000-byte output",

@@ -117,15 +117,16 @@ export async function compressToExactSize(
     };
   };
 
+  const scorer = await createScorer(codec, source);
+
   // Fast path: a small image may already fit at full resolution and top quality,
-  // and nothing can beat that, so there is no need to score anything.
+  // and no other candidate can beat that, so the search stops here. It is still
+  // scored — the number is reported to people, and quality 95 is not lossless.
   onProgress?.('probing');
   const full = await resolutionFor(ladder[0]).encode(maxQuality, format);
   if (canPadTo(full.bytes, target, format)) {
-    return finish({ ...full, score: 1 });
+    return finish({ ...full, score: await scorer(await codec.decode(full.data)) });
   }
-
-  const scorer = await createScorer(codec, source);
 
   // Step 1: predict the resolution the budget allows. Bytes scale with pixel
   // area, so the edge scales with the square root of the size ratio.
