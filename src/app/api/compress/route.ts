@@ -1,256 +1,132 @@
 /**
- * Main compression API endpoint with clean architecture
+ * POST /api/compress — one image in, exactly 80,000 bytes out.
+ *
+ * The browser does this work for people using the site; this endpoint exists for
+ * everything else: build steps, CMS hooks, scripts. It runs the same search on
+ * the sharp backend.
+ *
+ *   curl -X POST https://exact80.vercel.app/api/compress \
+ *     -F image=@photo.jpg -F format=avif -o photo.avif
+ *
+ * Limits are deliberately modest and enforced per instance — see `rate-limit.ts`
+ * for what that does and does not guarantee. Anyone who needs more should run
+ * the CLI, which has no limits because it runs on their own machine.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { OutputFormat, CompressionMode } from '@/lib/types';
-import { COMPRESSION_CONFIG, SUPPORTED_OUTPUT_FORMATS, ALLOWED_INPUT_TYPES, CACHE_CONFIG } from '@/lib/config';
-import { logger } from '@/lib/logger';
-import { compressionCache } from '@/lib/cache';
-import { AdaptiveHeuristicsEngine } from '@/lib/heuristics';
-import { ImageEncoder } from '@/lib/encoder';
-import { ParallelCompressor } from '@/lib/compressor';
+import { NextResponse, type NextRequest } from 'next/server';
+import { compressToExactSize, EXACT80_BYTES } from '@/lib/exact80/core/search';
+import { sharpCodec } from '@/lib/exact80/codecs/sharp';
+import type { OutputFormat } from '@/lib/exact80/core/types';
+import { rateLimit } from './rate-limit';
 
-// Resource management
-let activeJobs = 0;
-let totalJobsProcessed = 0;
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+/** The engine gives up at 15s; this leaves room for decoding a large input. */
+export const maxDuration = 60;
 
-/**
- * Resource management and rate limiting
- */
-class ResourceManager {
-  static canProcessRequest(): boolean {
-    return activeJobs < COMPRESSION_CONFIG.maxConcurrentJobs;
-  }
+const MAX_INPUT_BYTES = 25 * 1024 * 1024;
+const MIN_TARGET_BYTES = 1024;
+const MAX_TARGET_BYTES = 10 * 1024 * 1024;
+const FORMATS: OutputFormat[] = ['avif', 'webp'];
 
-  static startJob(): void {
-    activeJobs++;
-    totalJobsProcessed++;
-  }
+const fail = (status: number, error: string, extra: Record<string, unknown> = {}) =>
+  NextResponse.json({ error, ...extra }, { status });
 
-  static endJob(): void {
-    activeJobs--;
-  }
-
-  static getStats() {
-    return {
-      activeJobs,
-      totalJobsProcessed,
-      maxConcurrentJobs: COMPRESSION_CONFIG.maxConcurrentJobs,
-    };
-  }
-}
-
-/**
- * Request validation
- */
-class RequestValidator {
-  static validateRequest(file: File | null, format: string | null): { isValid: boolean; error?: string } {
-    if (!file) {
-      return { isValid: false, error: 'No image file provided' };
-    }
-
-    if (!SUPPORTED_OUTPUT_FORMATS.includes(format as OutputFormat)) {
-      return { isValid: false, error: 'Unsupported output format' };
-    }
-
-    if (!ALLOWED_INPUT_TYPES.includes(file.type as any)) {
-      return { isValid: false, error: 'Unsupported file type' };
-    }
-
-    if (file.size > COMPRESSION_CONFIG.maxFileSize) {
-      return { isValid: false, error: 'File too large' };
-    }
-
-    return { isValid: true };
-  }
-}
-
-/**
- * Response builder
- */
-class ResponseBuilder {
-  static buildSuccessResponse(
-    result: any,
-    inputSize: number,
-    filename: string,
-    format: OutputFormat
-  ): NextResponse {
-    const headers = new Headers();
-    headers.set('Content-Type', `image/${format}`);
-    headers.set('Content-Length', result.buffer.length.toString());
-    headers.set('X-Exact-Match', result.exactMatch ? '1' : '0');
-    headers.set('X-Result-Bytes', result.size.toString());
-    headers.set('X-Compression-Quality', result.quality.toString());
-    headers.set('X-Iterations', result.iterations.toString());
-    headers.set('X-Processing-Time', result.processingTime.toString());
-    headers.set('X-Mode', result.mode);
-    headers.set('X-Compression-Ratio', (inputSize / result.size).toFixed(2));
-    headers.set('X-Scale-Factor', result.scaleFactor?.toString() || '1');
-    headers.set('X-Palette-Reduced', result.paletteReduced ? '1' : '0');
-    headers.set('X-Parallel-Tests', result.parallelTests?.toString() || '0');
-    headers.set('X-Cache-Hit', '0');
-    headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-
-    return new NextResponse(result.buffer as BodyInit, { headers });
-  }
-
-  static buildCachedResponse(
-    buffer: Buffer,
-    format: OutputFormat,
-    filename: string
-  ): NextResponse {
-    const headers = new Headers();
-    headers.set('Content-Type', `image/${format}`);
-    headers.set('Content-Length', buffer.length.toString());
-    headers.set('X-Cache-Hit', '1');
-    headers.set('X-Processing-Time', '0');
-    headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-
-    return new NextResponse(buffer as BodyInit, { headers });
-  }
-
-  static buildErrorResponse(error: string, status: number = 500): NextResponse {
-    return NextResponse.json({ error }, { status });
-  }
-}
-
-/**
- * Filename generator
- */
-class FilenameGenerator {
-  static generate(
-    originalName: string,
-    format: OutputFormat,
-    result: any,
-    mode: CompressionMode
-  ): string {
-    const sanitizedName = originalName
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-
-    return `exact80--${sanitizedName}--${format}--${result.size}B--w${result.dimensions.width}h${result.dimensions.height}--q${result.quality}--m${mode.toUpperCase()}.${format}`;
-  }
-}
-
-/**
- * Main POST handler
- */
 export async function POST(request: NextRequest) {
-  const startTime = Date.now();
-  const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-  logger.info('Compression request started', null, requestId, 'API');
-
-  // Resource management
-  if (!ResourceManager.canProcessRequest()) {
-    logger.warn('Server busy, rejecting request', null, requestId, 'API');
-    return ResponseBuilder.buildErrorResponse('Server busy. Please try again later.', 503);
+  const limit = rateLimit(request);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Run the CLI locally for bulk work.' },
+      { status: 429, headers: { 'Retry-After': String(limit.retryAfterSeconds) } }
+    );
   }
 
-  ResourceManager.startJob();
+  let form: FormData;
+  try {
+    form = await request.formData();
+  } catch {
+    return fail(400, 'Send multipart/form-data with an "image" field');
+  }
+
+  const file = form.get('image');
+  if (!(file instanceof File)) {
+    return fail(400, 'Missing "image" field');
+  }
+  if (file.size === 0) {
+    return fail(400, 'The image is empty');
+  }
+  if (file.size > MAX_INPUT_BYTES) {
+    return fail(413, `Image is larger than the ${MAX_INPUT_BYTES / 1024 / 1024} MB limit`, {
+      bytes: file.size,
+    });
+  }
+
+  const format = (form.get('format') as string | null) ?? 'avif';
+  if (!FORMATS.includes(format as OutputFormat)) {
+    return fail(400, `"format" must be one of: ${FORMATS.join(', ')}`);
+  }
+
+  const targetValue = form.get('target');
+  const target = targetValue == null ? EXACT80_BYTES : Number(targetValue);
+  if (!Number.isInteger(target) || target < MIN_TARGET_BYTES || target > MAX_TARGET_BYTES) {
+    return fail(
+      400,
+      `"target" must be a whole number of bytes between ${MIN_TARGET_BYTES} and ${MAX_TARGET_BYTES}`
+    );
+  }
 
   try {
-    // Parse request
-    const formData = await request.formData();
-    const file = formData.get('image') as File;
-    const format = formData.get('format') as OutputFormat;
-    const mode = (formData.get('mode') as CompressionMode) || 'balanced';
+    const input = new Uint8Array(await file.arrayBuffer());
+    const result = await compressToExactSize(input, format as OutputFormat, sharpCodec, { target });
 
-    // Validate request
-    const validation = RequestValidator.validateRequest(file, format);
-    if (!validation.isValid) {
-      logger.warn(`Request validation failed: ${validation.error}`, null, requestId, 'API');
-      return ResponseBuilder.buildErrorResponse(validation.error!, 400);
-    }
+    const name = `${file.name.replace(/\.[^.]+$/, '').replace(/[^\w.-]+/g, '-') || 'image'}.${format}`;
 
-    const inputBuffer = Buffer.from(await file!.arrayBuffer());
-    const encoder = new ImageEncoder();
-
-    // Validate image
-    try {
-      encoder.validateImage(inputBuffer, COMPRESSION_CONFIG.maxFileSize);
-    } catch (error) {
-      logger.warn(`Image validation failed: ${error}`, null, requestId, 'API');
-      return ResponseBuilder.buildErrorResponse(error instanceof Error ? error.message : 'Invalid image', 400);
-    }
-
-    // Check cache
-    const cacheKey = compressionCache.generateKey(inputBuffer, format!, mode);
-    const cachedResult = compressionCache.get(cacheKey);
-    
-    if (cachedResult) {
-      logger.info('Cache hit', null, requestId, 'API');
-      const filename = FilenameGenerator.generate(file!.name, format!, { size: cachedResult.length }, mode);
-      return ResponseBuilder.buildCachedResponse(cachedResult, format!, filename);
-    }
-
-    // Extract metadata and generate heuristics
-    const metadata = await encoder.extractMetadata(inputBuffer);
-    const heuristicsEngine = new AdaptiveHeuristicsEngine();
-    const heuristics = heuristicsEngine.generateHeuristics(metadata);
-
-    // Compress image
-    const compressor = new ParallelCompressor(mode, heuristics);
-    const result = await compressor.compress(inputBuffer, format!);
-
-    // Cache the result
-    compressionCache.set(cacheKey, result.buffer);
-
-    // Cleanup cache periodically
-    if (totalJobsProcessed % CACHE_CONFIG.cleanupInterval === 0) {
-      compressionCache.cleanup();
-    }
-
-    // Generate filename and response
-    const filename = FilenameGenerator.generate(file!.name, format!, result, mode);
-    const response = ResponseBuilder.buildSuccessResponse(result, inputBuffer.length, filename, format!);
-
-    const processingTime = Date.now() - startTime;
-    logger.info(`Compression completed successfully in ${processingTime}ms`, {
-      inputSize: inputBuffer.length,
-      outputSize: result.size,
-      compressionRatio: (inputBuffer.length / result.size).toFixed(2),
-      quality: result.quality,
-      iterations: result.iterations,
-      exactMatch: result.exactMatch,
-    }, requestId, 'API');
-
-    return response;
-    
+    return new NextResponse(result.data as BodyInit, {
+      headers: {
+        'Content-Type': `image/${format}`,
+        'Content-Length': String(result.bytes),
+        'Content-Disposition': `attachment; filename="${name}"`,
+        'Cache-Control': 'no-store',
+        // The numbers behind the result, for callers that want to log them.
+        'X-Exact80-Bytes': String(result.bytes),
+        'X-Exact80-Width': String(result.width),
+        'X-Exact80-Height': String(result.height),
+        'X-Exact80-Quality': String(result.quality),
+        'X-Exact80-Score': result.score.toFixed(4),
+        'X-Exact80-Resized': result.resized ? '1' : '0',
+        'X-Exact80-Ms': String(result.ms),
+      },
+    });
   } catch (error) {
-    const processingTime = Date.now() - startTime;
-    logger.error(`Compression failed after ${processingTime}ms`, error, requestId, 'API');
+    const message = error instanceof Error ? error.message : 'Compression failed';
 
-    // Check if it's a timeout error
-    if (processingTime > COMPRESSION_CONFIG.maxWallTimeExact) {
-      return ResponseBuilder.buildErrorResponse(
-        'Processing timeout. Please try with a smaller image or different format.',
-        408
-      );
+    // The engine throws this when even the smallest size overshoots the target,
+    // which is the caller's problem to fix, not a server fault.
+    if (message.includes('Could not fit')) return fail(422, message);
+    if (message.includes('unsupported image format') || message.includes('Input buffer')) {
+      return fail(415, 'That file is not an image this server can read');
     }
 
-    return ResponseBuilder.buildErrorResponse(
-      error instanceof Error ? error.message : 'Compression failed',
-      500
-    );
-  } finally {
-    ResourceManager.endJob();
+    // Anything unrecognised may carry internal paths or library detail, so it
+    // goes to the server log and the caller gets the fact, not the trace.
+    console.error('exact80: compression failed', error);
+    return fail(500, 'Compression failed');
   }
 }
 
-/**
- * OPTIONS handler for CORS
- */
-export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+export function GET() {
+  return NextResponse.json({
+    endpoint: 'POST /api/compress',
+    body: 'multipart/form-data',
+    fields: {
+      image: 'required — the image file',
+      format: `optional — ${FORMATS.join(' or ')} (default avif)`,
+      target: `optional — exact output size in bytes (default ${EXACT80_BYTES})`,
     },
+    limits: {
+      maxInputBytes: MAX_INPUT_BYTES,
+      requestsPerMinute: rateLimit.perMinute,
+    },
+    cli: 'npx exact80 ./images — no limits, runs locally',
   });
 }

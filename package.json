@@ -1,37 +1,53 @@
 {
-  "name": "pixelpress",
+  "name": "exact80",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
-    "start": "next start"
+    "dev": "pnpm build:codecs && next dev --turbopack",
+    "build": "pnpm build:codecs && next build --turbopack",
+    "start": "next start",
+    "build:codecs": "node scripts/build-codecs.mjs",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "build:gallery": "node --import tsx scripts/build-gallery.mts",
+    "build:cli": "node scripts/build-cli.mjs"
   },
   "dependencies": {
+    "@jsquash/avif": "^2.1.1",
+    "@jsquash/resize": "^2.1.1",
+    "@jsquash/webp": "^1.5.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-progress": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "formidable": "^3.5.4",
+    "fflate": "^0.8.3",
     "lucide-react": "^0.546.0",
-    "next": "15.5.5",
+    "next": "15.5.27",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "sharp": "^0.34.4",
+    "sharp": "0.34.4",
     "tailwind-merge": "^3.3.1",
-    "tailwindcss-animate": "^1.0.7",
-    "uuid": "^13.0.0"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/formidable": "^3.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@types/uuid": "^11.0.0",
+    "esbuild": "^0.28.2",
     "tailwindcss": "^4",
-    "typescript": "^5"
-  }
+    "tsx": "^4.23.15",
+    "typescript": "^5",
+    "yaml": "^2.9.1"
+  },
+  "description": "Compress any image to exactly 80,000 bytes of WebP or AVIF.",
+  "bin": {
+    "exact80": "dist/exact80.mjs"
+  },
+  "files": [
+    "dist",
+    "src/lib/exact80",
+    "README.md"
+  ]
 }
