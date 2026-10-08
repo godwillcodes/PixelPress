@@ -17,6 +17,7 @@ import ResultCard from '@/components/ResultCard';
 import { Button } from '@/components/ui/button';
 import { EXACT80_BYTES } from '@/lib/exact80/core/search';
 import { useCompressor, type Job } from '@/lib/exact80/useCompressor';
+import { uniqueName } from '@/lib/exact80/core/names';
 
 function downloadName(originalName: string, format: string): string {
   return `${originalName.replace(/\.[^.]+$/, '').replace(/\s+/g, '-')}-80kb.${format}`;
@@ -26,9 +27,15 @@ function downloadName(originalName: string, format: string): string {
 async function downloadAll(jobs: Job[]): Promise<void> {
   const entries: Record<string, Uint8Array> = {};
 
+  const taken = new Set<string>();
   for (const job of jobs) {
     const result = job.outputs[job.selected].result;
-    if (result) entries[downloadName(job.file.name, job.selected)] = result.data;
+    if (!result) continue;
+
+    // Same-named images would otherwise overwrite each other inside the zip.
+    const name = uniqueName(taken, downloadName(job.file.name, job.selected));
+    taken.add(name);
+    entries[name] = result.data;
   }
 
   const archive = await new Promise<Uint8Array>((resolve, reject) => {

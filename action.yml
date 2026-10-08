@@ -24,7 +24,7 @@ inputs:
     required: false
     default: exact80-out
   comment:
-    description: Comment the results on the pull request. Needs `pull-requests: write`.
+    description: "Comment the results on the pull request. Needs `pull-requests: write` permission."
     required: false
     default: 'false'
   fail-on-error:

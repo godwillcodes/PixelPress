@@ -115,6 +115,33 @@ describe('exact80 CLI', () => {
     assert.match(err, /broken\.png/);
   });
 
+  test('keeps both images when two inputs want the same output name', async () => {
+    // a/logo.png and b/logo.png, plus photo.jpg beside photo.png: all three
+    // used to collapse onto one output file, silently.
+    const nested = join(workDir, 'nested');
+    await mkdir(join(nested, 'a'), { recursive: true });
+    await mkdir(join(nested, 'b'), { recursive: true });
+
+    const square = (colour: string) =>
+      sharp({ create: { width: 400, height: 400, channels: 3, background: colour } });
+    await square('#f00').png().toFile(join(nested, 'a', 'logo.png'));
+    await square('#0f0').png().toFile(join(nested, 'b', 'logo.png'));
+    await square('#00f').jpeg().toFile(join(nested, 'logo.jpg'));
+
+    const outDir = join(workDir, 'out-collision');
+    const { code } = await capture([nested, '--out', outDir, '--quiet']);
+
+    assert.equal(code, 0);
+
+    const written = (await readdir(outDir)).sort();
+    assert.equal(written.length, 3, `expected three files, got ${written.join(', ')}`);
+    assert.deepEqual(written, ['logo-2.avif', 'logo-3.avif', 'logo.avif']);
+
+    for (const file of written) {
+      assert.equal((await stat(join(outDir, file))).size, EXACT);
+    }
+  });
+
   test('says so when there is nothing to do', async () => {
     const empty = join(workDir, 'empty');
     await mkdir(empty, { recursive: true });

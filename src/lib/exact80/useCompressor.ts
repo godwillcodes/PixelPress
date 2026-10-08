@@ -30,6 +30,8 @@ export interface Job {
   outputs: Record<OutputFormat, FormatOutcome>;
   /** The format on show. Starts as the better-scoring one. */
   selected: OutputFormat;
+  /** True once the person picks a format themselves, which then sticks. */
+  chosenByUser: boolean;
   /** The better-scoring format, once both have finished. */
   recommended?: OutputFormat;
 }
@@ -39,23 +41,37 @@ const isFinished = (job: Job) => FORMATS.every((f) => job.outputs[f].result || j
 export function useCompressor() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const poolRef = useRef<CompressorPool | null>(null);
-  // Object URLs outlive React state updates, so they are tracked separately and
-  // revoked on unmount — otherwise every image leaks until the tab closes.
-  const urlsRef = useRef<string[]>([]);
+  // Object URLs are never garbage collected, and a job can finish after its card
+  // is gone, so each job's URLs are tracked by id and revoked when that job is
+  // removed, when everything is cleared, and on unmount.
+  const urlsRef = useRef(new Map<string, string[]>());
 
-  const trackUrl = (url: string) => {
-    urlsRef.current.push(url);
+  const trackUrl = (id: string, url: string) => {
+    const urls = urlsRef.current.get(id) ?? [];
+    urls.push(url);
+    urlsRef.current.set(id, urls);
     return url;
   };
+
+  const revokeJob = useCallback((id: string) => {
+    for (const url of urlsRef.current.get(id) ?? []) URL.revokeObjectURL(url);
+    urlsRef.current.delete(id);
+  }, []);
+
+  const revokeAll = useCallback(() => {
+    for (const urls of urlsRef.current.values()) {
+      for (const url of urls) URL.revokeObjectURL(url);
+    }
+    urlsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     return () => {
       poolRef.current?.dispose();
       poolRef.current = null;
-      for (const url of urlsRef.current) URL.revokeObjectURL(url);
-      urlsRef.current = [];
+      revokeAll();
     };
-  }, []);
+  }, [revokeAll]);
 
   const update = useCallback((id: string, change: (job: Job) => Job) => {
     setJobs((current) => current.map((job) => (job.id === id ? change(job) : job)));
@@ -70,9 +86,10 @@ export function useCompressor() {
         const job: Job = {
           id,
           file,
-          previewUrl: trackUrl(URL.createObjectURL(file)),
+          previewUrl: trackUrl(id, URL.createObjectURL(file)),
           outputs: { avif: { stage: 'decoding' }, webp: { stage: 'decoding' } },
           selected: 'avif',
+          chosenByUser: false,
         };
         setJobs((current) => [...current, job]);
 
@@ -86,7 +103,11 @@ export function useCompressor() {
               )
             )
             .then((result) => {
+              // The card may have been removed while this was still running.
+              if (!urlsRef.current.has(id)) return;
+
               const url = trackUrl(
+                id,
                 URL.createObjectURL(new Blob([result.data as BlobPart], { type: `image/${format}` }))
               );
               update(id, (j) => withRecommendation({
@@ -107,20 +128,33 @@ export function useCompressor() {
   );
 
   const select = useCallback(
-    (id: string, format: OutputFormat) => update(id, (job) => ({ ...job, selected: format })),
+    (id: string, format: OutputFormat) =>
+      update(id, (job) => ({ ...job, selected: format, chosenByUser: true })),
     [update]
   );
 
-  const remove = useCallback((id: string) => {
-    setJobs((current) => current.filter((job) => job.id !== id));
-  }, []);
+  const remove = useCallback(
+    (id: string) => {
+      revokeJob(id);
+      setJobs((current) => current.filter((job) => job.id !== id));
+    },
+    [revokeJob]
+  );
 
-  const clear = useCallback(() => setJobs([]), []);
+  const clear = useCallback(() => {
+    revokeAll();
+    setJobs([]);
+  }, [revokeAll]);
 
   return { jobs, addFiles, select, remove, clear, busy: jobs.some((job) => !isFinished(job)) };
 }
 
-/** Once both formats are in, the better-looking one becomes the recommendation. */
+/**
+ * Once both formats are in, the better-looking one becomes the recommendation —
+ * but it only changes what is on show if the person has not picked for
+ * themselves. Switching formats under someone after they chose one is worse than
+ * showing them the second-best.
+ */
 function withRecommendation(job: Job): Job {
   if (!isFinished(job)) return job;
 
@@ -130,5 +164,7 @@ function withRecommendation(job: Job): Job {
   if (scored.length === 0) return job;
 
   const best = scored.reduce((a, b) => (b.result.score > a.result.score ? b : a)).format;
-  return { ...job, recommended: best, selected: best };
+  const keepChoice = job.chosenByUser && Boolean(job.outputs[job.selected].result);
+
+  return { ...job, recommended: best, selected: keepChoice ? job.selected : best };
 }

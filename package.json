@@ -38,7 +38,8 @@
     "esbuild": "^0.28.2",
     "tailwindcss": "^4",
     "tsx": "^4.23.15",
-    "typescript": "^5"
+    "typescript": "^5",
+    "yaml": "^2.9.1"
   },
   "description": "Compress any image to exactly 80,000 bytes of WebP or AVIF.",
   "bin": {

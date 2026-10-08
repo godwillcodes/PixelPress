@@ -107,7 +107,10 @@ export async function POST(request: NextRequest) {
       return fail(415, 'That file is not an image this server can read');
     }
 
-    return fail(500, message);
+    // Anything unrecognised may carry internal paths or library detail, so it
+    // goes to the server log and the caller gets the fact, not the trace.
+    console.error('exact80: compression failed', error);
+    return fail(500, 'Compression failed');
   }
 }
 

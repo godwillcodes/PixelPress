@@ -368,6 +368,18 @@ var sharpCodec = {
   }
 };
 
+// src/lib/exact80/core/names.ts
+function uniqueName(taken, name) {
+  if (!taken.has(name)) return name;
+  const dot = name.lastIndexOf(".");
+  const stem = dot > 0 ? name.slice(0, dot) : name;
+  const extension = dot > 0 ? name.slice(dot) : "";
+  for (let counter = 2; ; counter++) {
+    const candidate = `${stem}-${counter}${extension}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
 // src/cli/index.ts
 var INPUT_EXTENSIONS = /* @__PURE__ */ new Set([".jpg", ".jpeg", ".png", ".webp", ".avif", ".tif", ".tiff", ".gif"]);
 var defaultIO = {
@@ -475,6 +487,7 @@ ${USAGE}`);
   await mkdir(options.outDir, { recursive: true });
   let failures = 0;
   let savedBytes = 0;
+  const written = /* @__PURE__ */ new Set();
   for (const file of files) {
     const started = Date.now();
     try {
@@ -482,7 +495,8 @@ ${USAGE}`);
       const result = await compressToExactSize(input, options.format, sharpCodec, {
         target: options.target
       });
-      const name = `${basename(file, extname(file))}.${options.format}`;
+      const name = uniqueName(written, `${basename(file, extname(file))}.${options.format}`);
+      written.add(name);
       const outPath = join(options.outDir, name);
       await writeFile(outPath, result.data);
       savedBytes += input.length - result.bytes;

@@ -11,6 +11,7 @@ import { basename, extname, join, relative, resolve } from 'node:path';
 import { compressToExactSize, EXACT80_BYTES } from '../lib/exact80/core/search';
 import { sharpCodec } from '../lib/exact80/codecs/sharp';
 import type { OutputFormat } from '../lib/exact80/core/types';
+import { uniqueName } from '../lib/exact80/core/names';
 
 const INPUT_EXTENSIONS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.avif', '.tif', '.tiff', '.gif']);
 
@@ -151,6 +152,10 @@ export async function run(argv: string[], io: CliIO = defaultIO): Promise<number
 
   let failures = 0;
   let savedBytes = 0;
+  // A directory walk can turn a/logo.png and b/logo.png into one output name,
+  // as can photo.jpg and photo.png side by side. Without this the second write
+  // replaces the first and the run still reports both as done.
+  const written = new Set<string>();
 
   for (const file of files) {
     const started = Date.now();
@@ -161,7 +166,8 @@ export async function run(argv: string[], io: CliIO = defaultIO): Promise<number
         target: options.target,
       });
 
-      const name = `${basename(file, extname(file))}.${options.format}`;
+      const name = uniqueName(written, `${basename(file, extname(file))}.${options.format}`);
+      written.add(name);
       const outPath = join(options.outDir, name);
       await writeFile(outPath, result.data);
       savedBytes += input.length - result.bytes;
